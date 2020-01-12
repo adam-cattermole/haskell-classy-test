@@ -24,8 +24,8 @@ defaultConfig = AppConfig $ StreamConfTwo $ ConfTwo 0 100000
 simpleNode :: AppConfig -> (Int -> (Int, Int)) -> IO ()
 simpleNode config fn = do
     let buildFn = case config ^. ingress of
-                    StreamConfOne _ -> runExceptT (runReaderT (unApp buildStream') config)
-                    StreamConfTwo _ -> runExceptT (runReaderT (unApp buildStream) config)
+                    StreamConfOne _ -> runExceptT (runReaderT (unApp buildStream) config)
+                    StreamConfTwo _ -> runExceptT (runReaderT (unApp buildStream') config)
     x <- buildFn
     case x of
         Left  e  -> return ()
@@ -40,10 +40,10 @@ strFn x = (x, x*2)
 
 
 -- Function that builds dependent on ConfOne
-buildStream' :: (MonadReader r m,
+buildStream :: (MonadReader r m,
                 HasConfOne r,
                 MonadIO m) => m [Int]
-buildStream' = do
+buildStream = do
     c <- ask
     liftIO $ go (c ^. delayFive) (c ^. initZero)
     where
@@ -53,15 +53,42 @@ buildStream' = do
             return (i:xs)
 
 -- Function that builds dependent on ConfTwo
-buildStream :: (MonadReader r m,
+buildStream' :: (MonadReader r m,
                 HasConfTwo r,
                 MonadIO m) => m [Int]
-buildStream = do
+buildStream' = do
     c <- ask
     liftIO $ go (c ^. delayOne) (c ^. initOne)
     where
         go delay i = unsafeInterleaveIO $ do
             threadDelay delay
             xs <- go delay (i+1)
+            return (i*2:xs)
+
+
+-- Non-Classy method but works
+simpleNode' :: AppConfig -> (Int -> (Int, Int)) -> IO ()
+simpleNode' conf fn = do
+    x <- case conf ^. ingress of
+            StreamConfOne co -> buildStreamNC  (_delayFive co)  (_initZero co)
+            StreamConfTwo ct -> buildStreamNC' ( _delayOne ct) (_initOne ct)
+    let result = map fn x
+    mapM_ print result
+
+
+buildStreamNC :: Int -> Int -> IO [Int]
+buildStreamNC = go
+    where
+        go delay i = unsafeInterleaveIO $ do
+            threadDelay delay
+            xs <- go delay (i+1)
             return (i:xs)
 
+
+buildStreamNC' :: Int -> Int -> IO [Int]
+buildStreamNC' = go
+    where
+        go delay i = unsafeInterleaveIO $ do
+            threadDelay delay
+            xs <- go delay (i+1)
+            return (i*2:xs)
