@@ -14,7 +14,7 @@ main = do
     let confone = AppConfig (StreamConfOne $ ConfOne 1 5000000) 5
         conftwo = defaultConfig
     -- User needs to be able to call function like this
-    simpleNode confone strFn
+    simpleNode conftwo strFn
 
 
 defaultConfig :: AppConfig
@@ -22,11 +22,7 @@ defaultConfig = AppConfig (StreamConfTwo $ ConfTwo 0 100000) 10
 
 
 simpleNode :: AppConfig -> (Int -> (Int, Int)) -> IO ()
-simpleNode config fn = do
-    x <- runExceptT (runReaderT (unApp $ nodeInternal fn) config)
-    case x of
-        Left  e -> print "yikes error" >> return ()
-        Right r -> print "done"        >> return () 
+simpleNode config fn = runReaderT (unApp $ nodeInternal fn) config 
 
 
 nodeInternal :: (MonadReader r m,
@@ -36,12 +32,13 @@ nodeInternal :: (MonadReader r m,
              -> m ()
 nodeInternal fn = do
     c <- ask
-    -- can use higher level config
-    liftIO $ print (c ^. globalconf)
-    -- extract ingress conf and run
-    stream <- liftIO $ ingressFn (c ^. ingress)
-    let result = map fn stream
-    liftIO $ mapM_ print result
+    liftIO $ do
+        -- can use higher level config
+        print (c ^. globalconf)
+        -- extract ingress conf and run
+        stream <- ingressFn (c ^. ingress)
+        let result = map fn stream
+        mapM_ print result
 
 
 -- Fake stream op function
