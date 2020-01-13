@@ -36,7 +36,7 @@ nodeInternal fn = do
         -- can use higher level config
         print (c ^. globalconf)
         -- extract ingress conf and run
-        stream <- ingressFn (c ^. ingress)
+        stream <- build (c ^. ingress)
         let result = map fn stream
         mapM_ print result
 
@@ -44,3 +44,23 @@ nodeInternal fn = do
 -- Fake stream op function
 strFn :: Int -> (Int, Int)
 strFn x = (x, x*2)
+
+build :: (MonadIO m) => StreamConfig -> m [Int]
+build (StreamConfOne c) = buildS  c
+build (StreamConfTwo c) = buildS' c
+
+buildS :: (MonadIO m) => ConfOne -> m [Int]
+buildS co = liftIO $ go (_delayFive co)  (_initZero co)
+    where
+        go delay i = unsafeInterleaveIO $ do
+            threadDelay delay
+            xs <- go delay (i+1)
+            return (i:xs)
+
+buildS' :: (MonadIO m) => ConfTwo -> m [Int]
+buildS' ct = liftIO $ go ( _delayOne ct) (_initOne ct)
+    where
+        go delay i = unsafeInterleaveIO $ do
+            threadDelay delay
+            xs <- go delay (i+1)
+            return (i*2:xs)

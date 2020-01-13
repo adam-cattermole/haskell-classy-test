@@ -37,27 +37,3 @@ newtype App a =
         MonadReader AppConfig,
         MonadIO
     )
-
-class Controller a where
-    ingressFn :: a -> IO [Int]
-    -- egressFn :: a -> IO ()
-
-instance Controller StreamConfig where
-    ingressFn (StreamConfOne c) = buildS  c
-    ingressFn (StreamConfTwo c) = buildS' c
-
-buildS :: ConfOne -> IO [Int]
-buildS co = go (_delayFive co)  (_initZero co)
-    where
-        go delay i = unsafeInterleaveIO $ do
-            threadDelay delay
-            xs <- go delay (i+1)
-            return (i:xs)
-
-buildS' :: ConfTwo -> IO [Int]
-buildS' ct = go ( _delayOne ct) (_initOne ct)
-    where
-        go delay i = unsafeInterleaveIO $ do
-            threadDelay delay
-            xs <- go delay (i+1)
-            return (i*2:xs)
